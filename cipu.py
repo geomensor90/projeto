@@ -63,6 +63,7 @@ with st.expander("📝 **Observações - Comece por aqui**"):
     st.write("Utilizar ponto ao em vez de vírgula. Ex.: 13.45")
     st.write("O buscador automático procura apenas pela LUOS, caso o imóvel não tenha LUOS, deverá ser utilizado a fórma **Preenchimento Manual** no próximo tópico")
     st.write("Versão 0.2. Corrigido: textos, importação automática, verificações extras, mais campos de preenchimento")
+    st.write("Versão 0.3. Corrigido: importação automática")
 
 
 with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
@@ -134,15 +135,20 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
                 # Extração dos parâmetros
                 linhas = texto.split("\n")
                 try:
-                    AfastamentoFrontal1 = float(linhas[106].strip())
-                    AfastamentoFundo1 = float(linhas[107].strip())
-                    AfastamentoDireito1 = float(linhas[108].strip())
-                    AfastamentoEsquerdo1 = float(linhas[101].strip())
-                    TaxaOcupacao1 = float(linhas[104].strip())
-                    AlturaMaxima1 = float(linhas[87].strip())
-                    CoeficienteAprovBasico1 = float(linhas[103].strip())
-                    CoeficienteAprovMaximo1 = float(linhas[109].strip())
-                    TaxaPermeabilidade1 = float(linhas[86].strip())
+                    def parse_float(valor_2):
+                        try:
+                            return float(valor_2.strip().replace(",", "."))
+                        except:
+                            return 0
+                    AfastamentoFrontal1 = parse_float(linhas[106])
+                    AfastamentoFundo1 = parse_float(linhas[107])
+                    AfastamentoDireito1 = parse_float(linhas[108])
+                    AfastamentoEsquerdo1 = parse_float(linhas[101])
+                    TaxaOcupacao1 = parse_float(linhas[104])
+                    AlturaMaxima1 = parse_float(linhas[87])
+                    CoeficienteAprovBasico1 = parse_float(linhas[103])
+                    CoeficienteAprovMaximo1 = parse_float(linhas[109])
+                    TaxaPermeabilidade1 = parse_float(linhas[86])
                     CotaSoleira1 = linhas[83]
                 except IndexError:
                     st.error("Erro ao extrair informações. Verifique se o PDF está no formato esperado.")
@@ -187,7 +193,7 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
 #segundo tópico - dados do projeto
 with st.expander("**📝 Passo 2: Dados do Projeto**"):
     # Campos para entrada manual
-    AreaDoLote = get_input_float("Área do Lote - Projeto Arquitetônico")
+    AreaDoLote = get_input_float("Área do Lote (terreno)- Projeto Arquitetônico")
     st.write("-----------------")
 
     st.write(f"Afastamento Frontal mínimo permitido: {AfastamentoFrontal1}") 
@@ -492,3 +498,4 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
         st.write("🔴 A Testada da lateral esquerda (Lateral do imóvel) da Topografia NÃO é a mesma da Arquitetura 🔴")
     else:
         st.write("✅ A Testada da lateral esquerda (Lateral do imóvel) da Topografia é a mesma da Arquitetura")
+
