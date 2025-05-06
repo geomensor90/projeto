@@ -3,9 +3,10 @@ import requests
 import time
 import pymupdf as fitz
 
-
+# Configuração da página
 st.set_page_config(page_title="Análise de Projeto", layout="wide")
 
+# Função auxiliar para obter input numérico
 def get_input_float(label):
     valor = st.text_input(label, "0")
     try:
@@ -13,65 +14,115 @@ def get_input_float(label):
     except ValueError:
         return 0.0
 
-AfastamentoFrontal1 = 0
-AfastamentoFundo1 = 0
-AfastamentoDireito1 = 0
-AfastamentoEsquerdo1 = 0
-TaxaOcupacao1 = 0
-AlturaMaxima1 = 0
-CoeficienteAprovBasico1 = 0
-CoeficienteAprovMaximo1 = 0
-TaxaPermeabilidade1 = 0
-CotaSoleira1 = 0
-AfastamentoFrontal3 = 0
-AfastamentoFundo3 = 0
-AfastamentoDireito3 = 0
-AfastamentoEsquerdo3 = 0
-TestadaFrontal3 = 0
-TestadaFundo3 = 0
-LateralDireito3 = 0
-LateralEsquerdo3 = 0
-Altura3 = 0
-AreaPermeavel3 = 0
-AreaDoLote = 0
-AreaTotalConstrucao3 = 0
-AreaConstruaoTerreo3 = 0
-CotaCoroamento3 = 0
-CotaSoleiraNumerica3 = 0
-CotaSoleira3 = 0
-AfastamentoFrontal4 = 0
-AfastamentoFundo4 = 0
-AfastamentoDireito4 = 0
-AfastamentoEsquerdo4 = 0
-TestadaFrontal4 = 0
-TestadaFundo4 = 0
-LateralDireito4 = 0
-LateralEsquerdo4 = 0
-CotaCoroamento4 = 0
-CotaSoleiraNumerica4 = 0
-CotaSoleira4 = 0
-TestadaFrontal5 = 0
-TestadaFundo5 = 0
-LateralDireito5 = 0
-LateralEsquerdo5 = 0
-AreaDoLote5 = 0
-CotaSoleiraSeudh = 0
-AreaVerdeConstruida = 0 
+# Inicialização das variáveis de sessão
+def init_session_state():
+    if 'AfastamentoFrontal1' not in st.session_state:
+        st.session_state['AfastamentoFrontal1'] = 0.0
+    if 'AfastamentoFundo1' not in st.session_state:
+        st.session_state['AfastamentoFundo1'] = 0.0
+    if 'AfastamentoDireito1' not in st.session_state:
+        st.session_state['AfastamentoDireito1'] = 0.0
+    if 'AfastamentoEsquerdo1' not in st.session_state:
+        st.session_state['AfastamentoEsquerdo1'] = 0.0
+    if 'TaxaOcupacao1' not in st.session_state:
+        st.session_state['TaxaOcupacao1'] = 0.0
+    if 'AlturaMaxima1' not in st.session_state:
+        st.session_state['AlturaMaxima1'] = 0.0
+    if 'CoeficienteAprovBasico1' not in st.session_state:
+        st.session_state['CoeficienteAprovBasico1'] = 0.0
+    if 'CoeficienteAprovMaximo1' not in st.session_state:
+        st.session_state['CoeficienteAprovMaximo1'] = 0.0
+    if 'TaxaPermeabilidade1' not in st.session_state:
+        st.session_state['TaxaPermeabilidade1'] = 0.0
+    if 'CotaSoleira1' not in st.session_state:
+        st.session_state['CotaSoleira1'] = ""
+    if 'modo_auto' not in st.session_state:
+        st.session_state['modo_auto'] = False
+    if 'pdf_linhas' not in st.session_state:
+        st.session_state['pdf_linhas'] = []
 
+init_session_state()
+
+# Seção de Observações
 with st.expander("📝 **Observações - Comece por aqui**"):
-    # Escolha do modo
     st.write("Utilizar ponto ao em vez de vírgula. Ex.: 13.45")
     st.write("O buscador automático procura apenas pela LUOS, caso o imóvel não tenha LUOS, deverá ser utilizado a fórma **Preenchimento Manual** no próximo tópico")
-    st.write("Versão 0.2. Corrigido: textos, importação automática, verificações extras, mais campos de preenchimento")
-    st.write("Versão 0.3. Corrigido: importação automática")
+    st.write("Versão 0.4. Corrigido: importação automática e adicionado a constula aos mapas e quadros")
 
 
+
+# Seção 1: Parâmetros Urbanísticos
 with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
-    # Escolha do modo
+    # Dados das regiões e links (no formato: Região;Link1;Link2)
+    # Dados das regiões e links (no formato: Região;Link1;Link2)
+    dados_regioes = """
+    Gama;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-1A_Gama.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-1A_Gama.pdf
+    Taguatinga;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-2A_Taguatinga.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-2A_Taguatinga.pdf
+    Brazlândia;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-3A_Brazlandia.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-3A_Brazlandia.pdf
+    Sobradinho;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-4A_Sobradinho.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-4A_Sobradinho.pdf
+    Planaltina;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-5A-Planaltina.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-5A_Planaltina.pdf
+    Paranoa;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-6A_Paranoa.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-6A_Paranoa.pdf
+    Bandeirante;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-7A_Nucleo-Bandeirante.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-7A_Nucleo-Bandeirante.pdf
+    Ceilândia;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-8A_Ceilandia.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-8A_Ceilandia.pdf
+    Guara;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-9A_Guara.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-9A_Guara.pdf
+    Samambaia;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-10A_Samambaia.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-10A_Samambaia.pdf
+    Santa Maria;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-11A_Santa-Maria.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-11A_Santa-Maria.pdf
+    Sao Sebastiao;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-12A_Sao-Sebastiao.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-12A_Sao-Sebastiao.pdf
+    Recanto das Emas;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-13A_Recanto-das-Emas.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-13A_Recanto-das-Emas.pdf
+    Lago Sul;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-14A_Lago-Sul.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-14A_Lago-Sul.pdf
+    Riacho Fundo;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-15A_Riacho-Fundo.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-15A_Riacho-Fundo.pdf
+    Lago Norte;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-16A_Lago-Norte.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-16A_Lago-Norte.pdf
+    Aguas Claras;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-17A_Aguas-Claras.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-17A_Aguas-Claras.pdf
+    Riacho Fundo II;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-18A_Riacho-Fundo-II.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-18A_Riacho-Fundo-II.pdf
+    Varjao;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-19A_Varjao.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-19A_Varjao.pdf
+    Park Way;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-20A_Park-Way.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-20A_Park-Way.pdf
+    SCIA;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-21A_SCIA.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-21A_SCIA.pdf
+    Sobradinho II;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-22A_Sobradinho-II.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-22A_Sobradinho.pdf
+    Jardim Botanico;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-23A_Jardim-Botanico.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-23A_Jardim-Botanico.pdf
+    Itapoa;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-24A_Itapoa.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-24A_Itapoa.pdf
+    SIA;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-25A_SIA.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-25A_SIA.pdf
+    Vicente Pires;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-26A_Vicente-Pires.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-26A_Vicente-Pires.pdf
+    Fercal;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-27A_Fercal.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-27A_Fercal.pdf
+    Sol Nascente;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-28A_Por-do-Sol_Sol-Nascente.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-28A_Sol-Nascente_Por-do-Sol.pdf
+    Arniqueira;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-II-%25E2%2580%2593-Mapa-29A_Arniqueira.pdf;https://www.seduh.df.gov.br/documents/6726485/38572899/LC1007_2022_Anexo-III-%25E2%2580%2593-Quadro-29A_Arniqueira.pdf
+    """
+
+    # Processar os dados
+    regioes = {}
+    for linha in dados_regioes.strip().split('\n'):
+        partes = linha.split(';')
+        if len(partes) == 3:
+            regiao = partes[0]
+            link1 = partes[1]
+            link2 = partes[2]
+            regioes[regiao] = {'Mapa': link1, 'Quadro': link2}
+
+    # Interface do Streamlit
+    st.markdown('🗺️ **Consulta dos parâmetros urbanísticos - Mapas e Quadros do DF**')
+    st.markdown('Selecione uma região administrativa do Distrito Federal para acessar os documentos relacionados.')
+
+    # Seleção da região
+    regiao_selecionada = st.selectbox(
+        'Selecione a região:',
+        sorted(regioes.keys()),
+        index=0,
+        help='Escolha uma região administrativa do DF'
+    )
+
+    # Exibir os links
+    if regiao_selecionada:
+        st.markdown(f'Documentos para {regiao_selecionada}')
+        
+        st.markdown(f'**Mapa:** [Abrir Mapa PDF]({regioes[regiao_selecionada]["Mapa"]})', unsafe_allow_html=True)
+        st.markdown(f'**Quadro:** [Abrir Quadro PDF]({regioes[regiao_selecionada]["Quadro"]})', unsafe_allow_html=True)
+
+    st.markdown('---')
+
+    st.subheader("Aqui será a inserção dos parâmetros urbanísticos")
     modo = st.radio("Escolha o modo de entrada dos parâmetros urbanísticos:", ["Extração Automática", "Preenchimento Manual"])
 
     if modo == "Extração Automática":
-        codigo = st.text_input("Informe o CIPU", "418924")
+        codigo = st.text_input("Informe o CIPU - Vão ser apenas números (Não confundir com o CIU)", "418924")
 
         if st.button("Consultar"):
             st.info("Enviando requisição...  - **Pode demorar até 10 segundos**")
@@ -134,114 +185,153 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
 
                 # Extração dos parâmetros
                 linhas = texto.split("\n")
-                try:
-                    def parse_float(valor_2):
-                        try:
-                            return float(valor_2.strip().replace(",", "."))
-                        except:
-                            return 0
-                    AfastamentoFrontal1 = parse_float(linhas[106])
-                    AfastamentoFundo1 = parse_float(linhas[107])
-                    AfastamentoDireito1 = parse_float(linhas[108])
-                    AfastamentoEsquerdo1 = parse_float(linhas[101])
-                    TaxaOcupacao1 = parse_float(linhas[104])
-                    AlturaMaxima1 = parse_float(linhas[87])
-                    CoeficienteAprovBasico1 = parse_float(linhas[103])
-                    CoeficienteAprovMaximo1 = parse_float(linhas[109])
-                    TaxaPermeabilidade1 = parse_float(linhas[86])
-                    CotaSoleira1 = linhas[83]
-                except IndexError:
-                    st.error("Erro ao extrair informações. Verifique se o PDF está no formato esperado.")
-                    st.stop()
+                
+                def parse_float(valor_2):
+                    try:
+                        return float(valor_2.strip().replace(",", "."))
+                    except:
+                        return 0
+
+                # Armazena todos os valores na sessão
+                st.session_state['AfastamentoFrontal1'] = parse_float(linhas[106])
+                st.session_state['AfastamentoFundo1'] = parse_float(linhas[107])
+                st.session_state['AfastamentoDireito1'] = parse_float(linhas[108])
+                st.session_state['AfastamentoEsquerdo1'] = parse_float(linhas[101])
+                st.session_state['TaxaOcupacao1'] = parse_float(linhas[104])
+                st.session_state['AlturaMaxima1'] = parse_float(linhas[87])
+                st.session_state['CoeficienteAprovBasico1'] = parse_float(linhas[103])
+                st.session_state['CoeficienteAprovMaximo1'] = parse_float(linhas[109])
+                st.session_state['TaxaPermeabilidade1'] = parse_float(linhas[86])
+                st.session_state['CotaSoleira1'] = linhas[83]
+                st.session_state['pdf_linhas'] = linhas
+                st.session_state['modo_auto'] = True
+
+                st.success("Dados extraídos com sucesso!")
 
             except Exception as e:
                 st.error(f"Erro ao extrair texto do PDF: {e}")
-            st.subheader("📌 Parâmetros Urbanísticos Extraídos Automaticamente (Apenas para Consulta)")
-            st.markdown(f"**Afastamento Frontal:** {AfastamentoFrontal1}")
-            st.markdown(f"**Afastamento Fundo:** {AfastamentoFundo1}")
-            st.markdown(f"**Afastamento Direito:** {AfastamentoDireito1}")
-            st.markdown(f"**Afastamento Esquerdo:** {AfastamentoEsquerdo1}")
-            st.markdown(f"**Taxa de Ocupação:** {TaxaOcupacao1}")
-            st.markdown(f"**Altura Máxima:** {AlturaMaxima1}")
-            st.markdown(f"**Coeficiente Aproveitamento Básico:** {CoeficienteAprovBasico1}")
-            st.markdown(f"**Coeficiente Aproveitamento Máximo:** {CoeficienteAprovMaximo1}")
-            st.markdown(f"**Taxa de Permeabilidade:** {TaxaPermeabilidade1}")
-            st.markdown(f"**Cota de Soleira:** {CotaSoleira1}")
-    else:
-        # Campos para entrada manual
-        
+                st.stop()
 
-        AfastamentoFrontal1 = get_input_float("Afastamento Frontal")
-        AfastamentoFundo1 = get_input_float("Afastamento Fundo")
-        AfastamentoDireito1 = get_input_float("Afastamento Direito")
-        AfastamentoEsquerdo1 = get_input_float("Afastamento Esquerdo")
-        TaxaOcupacao1 = get_input_float("Taxa de Ocupação - Ex.:50")
-        AlturaMaxima1 = get_input_float("Altura Máxima")
-        CoeficienteAprovBasico1 = get_input_float("Coeficiente Aproveitamento Básico - Ex.:2")
-        CoeficienteAprovMaximo1 = get_input_float("Coeficiente Aproveitamento Máximo - Ex.:3")
-        TaxaPermeabilidade1 = get_input_float("Taxa de Permeabilidade  - Ex.:80")
-        CotaSoleira1 = st.radio(
-        "Posição da Cota de Soleira no parâmetro Urbanístico:",
-        [
-            "Ponto Médio da Edificação",
-            "Cota Altimétrica média do Lote",
-            "Ponto Médio da Testada Frontal"
-        ]
+            # Mostra os valores extraídos
+            st.subheader("📌 Parâmetros Urbanísticos Extraídos Automaticamente (Apenas para Consulta)")
+            st.markdown(f"**Afastamento Frontal:** {st.session_state['AfastamentoFrontal1']:.2f}")
+            st.markdown(f"**Afastamento Fundo:** {st.session_state['AfastamentoFundo1']:.2f}")
+            st.markdown(f"**Afastamento Direito:** {st.session_state['AfastamentoDireito1']:.2f}")
+            st.markdown(f"**Afastamento Esquerdo:** {st.session_state['AfastamentoEsquerdo1']:.2f}")
+            st.markdown(f"**Taxa de Ocupação:** {st.session_state['TaxaOcupacao1']:.2f}")
+            st.markdown(f"**Altura Máxima:** {st.session_state['AlturaMaxima1']:.2f}")
+            st.markdown(f"**Coeficiente Aproveitamento Básico:** {st.session_state['CoeficienteAprovBasico1']:.2f}")
+            st.markdown(f"**Coeficiente Aproveitamento Máximo:** {st.session_state['CoeficienteAprovMaximo1']:.2f}")
+            st.markdown(f"**Taxa de Permeabilidade:** {st.session_state['TaxaPermeabilidade1']:.2f}")
+            st.markdown(f"**Cota de Soleira:** {st.session_state['CotaSoleira1']}")
+
+    else:  # Modo Manual
+        st.session_state['modo_auto'] = False
+        st.session_state['AfastamentoFrontal1'] = get_input_float("Afastamento Frontal")
+        st.session_state['AfastamentoFundo1'] = get_input_float("Afastamento Fundo")
+        st.session_state['AfastamentoDireito1'] = get_input_float("Afastamento Direito")
+        st.session_state['AfastamentoEsquerdo1'] = get_input_float("Afastamento Esquerdo")
+        st.session_state['TaxaOcupacao1'] = get_input_float("Taxa de Ocupação - Ex.:50")
+        st.session_state['AlturaMaxima1'] = get_input_float("Altura Máxima")
+        st.session_state['CoeficienteAprovBasico1'] = get_input_float("Coeficiente Aproveitamento Básico - Ex.:2")
+        st.session_state['CoeficienteAprovMaximo1'] = get_input_float("Coeficiente Aproveitamento Máximo - Ex.:3")
+        st.session_state['TaxaPermeabilidade1'] = get_input_float("Taxa de Permeabilidade  - Ex.:80")
+        st.session_state['CotaSoleira1'] = st.radio(
+            "Posição da Cota de Soleira no parâmetro Urbanístico:",
+            [
+                "Ponto Médio da Edificação",
+                "Cota Altimétrica média do Lote",
+                "Ponto Médio da Testada Frontal"
+            ]
         )
 
-
-#segundo tópico - dados do projeto
+# Seção 2: Dados do Projeto
 with st.expander("**📝 Passo 2: Dados do Projeto**"):
+    # Recupera todos os valores da sessão
+    AfastamentoFrontal1 = st.session_state['AfastamentoFrontal1']
+    AfastamentoFundo1 = st.session_state['AfastamentoFundo1']
+    AfastamentoDireito1 = st.session_state['AfastamentoDireito1']
+    AfastamentoEsquerdo1 = st.session_state['AfastamentoEsquerdo1']
+    TaxaOcupacao1 = st.session_state['TaxaOcupacao1']
+    AlturaMaxima1 = st.session_state['AlturaMaxima1']
+    CoeficienteAprovBasico1 = st.session_state['CoeficienteAprovBasico1']
+    CoeficienteAprovMaximo1 = st.session_state['CoeficienteAprovMaximo1']
+    TaxaPermeabilidade1 = st.session_state['TaxaPermeabilidade1']
+    CotaSoleira1 = st.session_state['CotaSoleira1']
+
+    # Mostra os valores extraídos
+    st.markdown("📌 Parâmetros Urbanísticos Utilizados (Apenas para Consulta) 📌")
+    st.markdown(f"**Afastamento Frontal:** {AfastamentoFrontal1:.2f}")
+    st.markdown(f"**Afastamento Fundo:** {AfastamentoFundo1:.2f}")
+    st.markdown(f"**Afastamento Direito:** {AfastamentoDireito1:.2f}")
+    st.markdown(f"**Afastamento Esquerdo:** {AfastamentoEsquerdo1:.2f}")
+    st.markdown(f"**Taxa de Ocupação:** {TaxaOcupacao1:.2f}")
+    st.markdown(f"**Altura Máxima:** {AlturaMaxima1:.2f}")
+    st.markdown(f"**Coeficiente Aproveitamento Básico:** {CoeficienteAprovBasico1:.2f}")
+    st.markdown(f"**Coeficiente Aproveitamento Máximo:** {CoeficienteAprovMaximo1:.2f}")
+    st.markdown(f"**Taxa de Permeabilidade:** {TaxaPermeabilidade1:.2f}")
+    st.markdown(f"**Cota de Soleira:** {CotaSoleira1}")
+    st.write("-----------------")
+    
+    # Se foi modo automático, temos as linhas do PDF disponíveis
+    if st.session_state['modo_auto']:
+        linhas = st.session_state['pdf_linhas']
+    
+
+    
     # Campos para entrada manual
     AreaDoLote = get_input_float("Área do Lote (terreno)- Projeto Arquitetônico")
     st.write("-----------------")
 
-    st.write(f"Afastamento Frontal mínimo permitido: {AfastamentoFrontal1}") 
+
+    st.write(f"Afastamento Frontal mínimo permitido: {AfastamentoFrontal1}")
+
+  
     AfastamentoFrontal3 = get_input_float("Afastamento Frontal - Projeto Arquitetônico")
     if AfastamentoFrontal3 < AfastamentoFrontal1:
-        st.markdown(f"🔴 **O afastamento frontal é inferior ao mínimo permitido** 🔴")
+        st.error(f"🔴 **O afastamento frontal é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
     st.markdown(f"Afastamento Fundo mínimo permitido: {AfastamentoFundo1}")
     AfastamentoFundo3 = get_input_float("Afastamento Fundo - Projeto Arquitetônico")
     if AfastamentoFundo3 < AfastamentoFundo1:
-        st.markdown(f"🔴 **O afastamento de fundo é inferior ao mínimo permitido** 🔴")
+        st.error(f"🔴 **O afastamento de fundo é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
     st.markdown(f"Afastamento Direito mínimo permitido: {AfastamentoDireito1}")
     AfastamentoDireito3 = get_input_float("Afastamento Direito - Projeto Arquitetônico")
     if AfastamentoDireito3 < AfastamentoDireito1:
-        st.markdown(f"🔴 **O afastamento da lateral direita é inferior ao mínimo permitido** 🔴")
+        st.error(f"🔴 **O afastamento da lateral direita é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
     st.markdown(f"Afastamento Esquerdo mínimo permitido: {AfastamentoEsquerdo1}")
     AfastamentoEsquerdo3 = get_input_float("Afastamento Esquerdo - Projeto Arquitetônico")
     if AfastamentoEsquerdo3 < AfastamentoEsquerdo1:
-        st.markdown(f"🔴 **O afastamento da lateral esquerda é inferior ao mínimo permitido** 🔴")
+        st.error(f"🔴 **O afastamento da lateral esquerda é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
     st.markdown(f"Altura Máxima: {AlturaMaxima1}")
     Altura3 = get_input_float("Altura (m) - Projeto Arquitetônico")
     if Altura3 > AlturaMaxima1:
-        st.markdown(f"🔴 **Altura Máxima excedida** 🔴")    
+        st.error(f"🔴 **Altura Máxima excedida** 🔴")    
     st.write("-----------------")
 
     st.markdown(f"Área mínima permeável: {AreaDoLote * (TaxaPermeabilidade1/100)}")
     AreaPermeavel3 = get_input_float("Área Permável - Projeto Arquitetônico")
     if AreaPermeavel3 < (AreaDoLote * (TaxaPermeabilidade1/100)):
-        st.markdown(f"🔴 **O projeto não possui a área de permeabilidade mínima** 🔴")   
+        st.error(f"🔴 **O projeto não possui a área de permeabilidade mínima** 🔴")   
     st.write("-----------------")
 
     st.markdown(f"Área total de construção permitida: {AreaDoLote * CoeficienteAprovBasico1}")
     AreaTotalConstrucao3 = get_input_float("Área total da Construção - Projeto Arquitetônico")
     if AreaTotalConstrucao3 > (AreaDoLote * CoeficienteAprovBasico1):
-        st.markdown(f"🔴 **Extrapolado o coeficiente de aproveitamento básico do lote** 🔴")  
+        st.error(f"🔴 **Extrapolado o coeficiente de aproveitamento básico do lote** 🔴")  
     st.write("-----------------")
 
-    st.markdown(f"Áreade construção do térreo (Para cálculo da taxa de ocupação): {AreaDoLote * (TaxaOcupacao1/100)}")
+    st.markdown(f"Área de construção do térreo (Para cálculo da taxa de ocupação): {AreaDoLote * (TaxaOcupacao1/100)}")
     AreaConstruaoTerreo3 = get_input_float("Área de construção do térreo (para cálculo do coeficiente de aproveitamento) - Projeto Arquitetônico")
     if AreaConstruaoTerreo3 > (AreaDoLote * (TaxaOcupacao1/100)):
-        st.markdown(f"🔴 **Extrapolado o coeficiente de aproveitamento do lote** 🔴")  
+        st.error(f"🔴 **Extrapolado o coeficiente de aproveitamento do lote** 🔴")  
     st.write("-----------------")
 
     st.markdown(f"Cota de soleira extraída através da Seduh - GeoPortal")
@@ -258,7 +348,7 @@ with st.expander("**📝 Passo 2: Dados do Projeto**"):
     ]
     )
     if PossuiCoroamento == "Não":
-        st.markdown("**❌ Falta a cota da soleira e distância até o coroamento da edificação**")
+        st.error("**❌ Falta a cota da soleira e distância até o coroamento da edificação**")
     st.write("-----------------")
 
 
@@ -343,15 +433,17 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
         st.write("🔴 A área total de construção ultrapassou o máximo permitido 🔴")
     else:
         st.write("✅ Área total de construção dentro do limite")
+    st.write("-----------------")
 
     #área verde
-    st.write(f"**🌳 Área verde no projeto:** {AreaVerdeConstruida}")
+    st.write(f"**🌳 Área verde no projeto:** {AreaPermeavel3}")
     st.write(f"**Área de permeabilidade mínima:** {AreaVerdeMinima}")     
-    if AreaVerdeConstruida >= AreaVerdeMinima:
+    if AreaPermeavel3 >= AreaVerdeMinima:
         st.write("✅ Área permeável dentro dos limites")
-    else:
+    #else:
         st.write("🔴 Área verde insuficiente 🔴")
-        
+    st.write("-----------------")   
+
     #taxa de ocupação
     st.write(f"**🔳 Área da Taxa de Ocupação do projeto:** {AreaConstruaoTerreo3}")
     st.write(f"**Área da Taxa de Ocupação permitida para o lote:** {CoeficienteAproveitamentoReal}")     
@@ -359,7 +451,8 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
         st.write("🔴 Taxa de ocupação ultrapassada 🔴")
     else:
         st.write("✅ Taxa de ocupação atendida")
-    
+    st.write("-----------------")
+
     # altura máxima
     if Altura3 <= AlturaMaxima1:
         st.write("✅ Altura nos limites permitidos")
@@ -374,7 +467,6 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
         st.write("✅ O afastamento frontal no projeto arquitetônico está dentro do limite permitido.")
     else: 
         st.write("🔴 O afastamento frontal no projeto arquitetônico NÃO está dentro do limite permitido. 🔴")
-
 
     #afastamento fundos   
     if (AfastamentoFundo3 >= AfastamentoFundo1):
@@ -394,7 +486,10 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
     else: 
         st.write("🔴 O afastamento da lateral esquerda no projeto arquitetônico NÃO está dentro do limite com relação ao limite permitido.🔴")
 
-
+    #altura topografia
+    AlturaTopografia = 0
+    AlturaTopografia = CotaCoroamento4 - CotaSoleiraNumerica4
+    st.write(f"**Altura da Edificação de acordo com a Topografia:** {AlturaTopografia}")
 
     st.subheader("Documentação do Imóvel")
     if AreaDoLote5 != AreaDoLote:
@@ -498,4 +593,3 @@ with st.expander("**📝 Passo 5: Análise Automática**"):
         st.write("🔴 A Testada da lateral esquerda (Lateral do imóvel) da Topografia NÃO é a mesma da Arquitetura 🔴")
     else:
         st.write("✅ A Testada da lateral esquerda (Lateral do imóvel) da Topografia é a mesma da Arquitetura")
-
