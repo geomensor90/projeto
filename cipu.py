@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import time
 import pymupdf as fitz
+import re
 
 # Configuração da página
 st.set_page_config(page_title="Análise de Projeto", layout="wide")
@@ -13,6 +14,14 @@ def get_input_float(label):
         return float(valor)
     except ValueError:
         return 0.0
+
+def get_input_float(label_2):  # Parâmetro renomeado para label_2
+    valor = st.text_input(label_2, "0").replace(",", ".")  # Aqui usamos label_2
+    try:
+        return float(valor)
+    except ValueError:
+        return 0.0
+
 
 # Inicialização das variáveis de sessão
 def init_session_state():
@@ -34,6 +43,8 @@ def init_session_state():
         st.session_state['CoeficienteAprovMaximo1'] = 0.0
     if 'TaxaPermeabilidade1' not in st.session_state:
         st.session_state['TaxaPermeabilidade1'] = 0.0
+    if 'AreaProjetoPDOT' not in st.session_state:
+        st.session_state['AreaProjetoPDOT'] = 0.0
     if 'CotaSoleira1' not in st.session_state:
         st.session_state['CotaSoleira1'] = ""
     if 'modo_auto' not in st.session_state:
@@ -47,9 +58,7 @@ init_session_state()
 with st.expander("📝 **Observações - Comece por aqui**"):
     st.write("Utilizar ponto ao em vez de vírgula. Ex.: 13.45")
     st.write("O buscador automático procura apenas pela LUOS, caso o imóvel não tenha LUOS, deverá ser utilizado a fórma **Preenchimento Manual** no próximo tópico")
-    st.write("Versão 0.4. Corrigido: importação automática e adicionado a constula aos mapas e quadros")
-
-
+    st.write("Versão 0.5. Adicionado a importação por texto")
 
 # Seção 1: Parâmetros Urbanísticos
 with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
@@ -119,8 +128,9 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
     st.markdown('---')
 
     st.subheader("Aqui será a inserção dos parâmetros urbanísticos")
-    modo = st.radio("Escolha o modo de entrada dos parâmetros urbanísticos:", ["Extração Automática", "Preenchimento Manual"])
+    modo = st.radio("Escolha o modo de entrada dos parâmetros urbanísticos:", ["Extração Automática", "Extração por Texto", "Preenchimento Manual"])
 
+    #modo extração automática
     if modo == "Extração Automática":
         codigo = st.text_input("Informe o CIPU - Vão ser apenas números (Não confundir com o CIU)", "418924")
 
@@ -202,6 +212,7 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
                 st.session_state['CoeficienteAprovBasico1'] = parse_float(linhas[103])
                 st.session_state['CoeficienteAprovMaximo1'] = parse_float(linhas[109])
                 st.session_state['TaxaPermeabilidade1'] = parse_float(linhas[86])
+                st.session_state['AreaProjetoPDOT'] = parse_float(linhas[113])
                 st.session_state['CotaSoleira1'] = linhas[83]
                 st.session_state['pdf_linhas'] = linhas
                 st.session_state['modo_auto'] = True
@@ -223,7 +234,44 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
             st.markdown(f"**Coeficiente Aproveitamento Básico:** {st.session_state['CoeficienteAprovBasico1']:.2f}")
             st.markdown(f"**Coeficiente Aproveitamento Máximo:** {st.session_state['CoeficienteAprovMaximo1']:.2f}")
             st.markdown(f"**Taxa de Permeabilidade:** {st.session_state['TaxaPermeabilidade1']:.2f}")
+            st.markdown(f"**Área do Projeto:** {st.session_state['AreaProjetoPDOT']:.2f}")
             st.markdown(f"**Cota de Soleira:** {st.session_state['CotaSoleira1']}")
+
+    
+    elif modo == "Extração por Texto":
+    
+        texto_20 = st.text_area("Cole o conteúdo aqui (texto da LUOS direto do GeoPortal):")
+        
+        if st.button("Extrair Parâmetros do Texto"):
+            def extract_and_convert(pattern, text, default=0.0):
+                match = re.search(pattern, text)
+                if match:
+                    try:
+                        return float(match.group(1).replace(",", "."))
+                    except ValueError:
+                        return default
+                return default
+            
+            # Extrai todos os parâmetros mantendo os mesmos nomes no session_state
+            st.session_state['AfastamentoFrontal1'] = extract_and_convert(r"Afast. de frente\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['AfastamentoFundo1'] = extract_and_convert(r"Afast. de fundo\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['AfastamentoDireito1'] = extract_and_convert(r"Afast. lat. direito\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['AfastamentoEsquerdo1'] = extract_and_convert(r"Afast. lat. esquerdo\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['TaxaOcupacao1'] = extract_and_convert(r"Taxa de ocupação\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['AlturaMaxima1'] = extract_and_convert(r"Altura máxima\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['CoeficienteAprovBasico1'] = extract_and_convert(r"Coef. de aprov. básico\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['CoeficienteAprovMaximo1'] = extract_and_convert(r"Coef. aprov. máximo\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['TaxaPermeabilidade1'] = extract_and_convert(r"Taxa de permeabilidade\s*[:]?\s*([\d.,]+)", texto_20)
+            st.session_state['AreaProjetoPDOT'] = extract_and_convert(r"Área de Projeto\s*[:]?\s*([\d.,]+)", texto_20)
+            match = re.search(r"Cota de [Ss]oleira\s*[:]?\s*(.*?)(?:;|\.|\n|$)", texto_20)
+            if match:
+                st.session_state['CotaSoleira1'] = match.group(1).strip()
+            
+
+            st.session_state['modo_auto'] = False
+            
+            st.success("Parâmetros extraídos do texto com sucesso!")
+            
 
     else:  # Modo Manual
         st.session_state['modo_auto'] = False
@@ -232,6 +280,7 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
         st.session_state['AfastamentoDireito1'] = get_input_float("Afastamento Direito")
         st.session_state['AfastamentoEsquerdo1'] = get_input_float("Afastamento Esquerdo")
         st.session_state['TaxaOcupacao1'] = get_input_float("Taxa de Ocupação - Ex.:50")
+        st.session_state['AlturaMaxima1'] = get_input_float("Altura Máxima")
         st.session_state['AlturaMaxima1'] = get_input_float("Altura Máxima")
         st.session_state['CoeficienteAprovBasico1'] = get_input_float("Coeficiente Aproveitamento Básico - Ex.:2")
         st.session_state['CoeficienteAprovMaximo1'] = get_input_float("Coeficiente Aproveitamento Máximo - Ex.:3")
@@ -247,6 +296,8 @@ with st.expander("📝 **Passo 1: Parâmetros Urbanísticos do Terreno**"):
 
 # Seção 2: Dados do Projeto
 with st.expander("**📝 Passo 2: Dados do Projeto**"):
+
+
     # Recupera todos os valores da sessão
     AfastamentoFrontal1 = st.session_state['AfastamentoFrontal1']
     AfastamentoFundo1 = st.session_state['AfastamentoFundo1']
@@ -258,6 +309,7 @@ with st.expander("**📝 Passo 2: Dados do Projeto**"):
     CoeficienteAprovMaximo1 = st.session_state['CoeficienteAprovMaximo1']
     TaxaPermeabilidade1 = st.session_state['TaxaPermeabilidade1']
     CotaSoleira1 = st.session_state['CotaSoleira1']
+    AreaProjetoPDOT = st.session_state['AreaProjetoPDOT']
 
     # Mostra os valores extraídos
     st.markdown("📌 Parâmetros Urbanísticos Utilizados (Apenas para Consulta) 📌")
@@ -270,6 +322,7 @@ with st.expander("**📝 Passo 2: Dados do Projeto**"):
     st.markdown(f"**Coeficiente Aproveitamento Básico:** {CoeficienteAprovBasico1:.2f}")
     st.markdown(f"**Coeficiente Aproveitamento Máximo:** {CoeficienteAprovMaximo1:.2f}")
     st.markdown(f"**Taxa de Permeabilidade:** {TaxaPermeabilidade1:.2f}")
+    st.markdown(f"**Área de acordo com os parâmetros:** {AreaProjetoPDOT:.2f}")
     st.markdown(f"**Cota de Soleira:** {CotaSoleira1}")
     st.write("-----------------")
     
@@ -280,64 +333,67 @@ with st.expander("**📝 Passo 2: Dados do Projeto**"):
 
     
     # Campos para entrada manual
-    AreaDoLote = get_input_float("Área do Lote (terreno)- Projeto Arquitetônico")
+    st.write(f"Área de acordo com o parâmetro urbanístico: {AreaProjetoPDOT:.2f}")
+    AreaDoLote = get_input_float("Área do Lote (terreno)- VERIFICADO no projeto arquitetônico  (m²)")
+    if AreaDoLote != AreaProjetoPDOT:
+        st.error(f"🔴 **A área do parâmetro urbanístico deve ser a mesma do projeto arquitetônico** 🔴")
     st.write("-----------------")
 
 
     st.write(f"Afastamento Frontal mínimo permitido: {AfastamentoFrontal1}")
 
-  
-    AfastamentoFrontal3 = get_input_float("Afastamento Frontal - Projeto Arquitetônico")
+    AfastamentoFrontal3 = float(get_input_float("Afastamento Frontal - Projeto Arquitetônico (m)"))
+
     if AfastamentoFrontal3 < AfastamentoFrontal1:
-        st.error(f"🔴 **O afastamento frontal é inferior ao mínimo permitido** 🔴")
+        st.error(f"🔴 **O afastamento frontal é inferior ao mínimo permitido (m)** 🔴")
     st.write("-----------------")
 
-    st.markdown(f"Afastamento Fundo mínimo permitido: {AfastamentoFundo1}")
-    AfastamentoFundo3 = get_input_float("Afastamento Fundo - Projeto Arquitetônico")
+    st.markdown(f"Afastamento Fundo mínimo permitido (m): {AfastamentoFundo1}")
+    AfastamentoFundo3 = get_input_float("Afastamento Fundo - Projeto Arquitetônico (m)")
     if AfastamentoFundo3 < AfastamentoFundo1:
         st.error(f"🔴 **O afastamento de fundo é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
-    st.markdown(f"Afastamento Direito mínimo permitido: {AfastamentoDireito1}")
-    AfastamentoDireito3 = get_input_float("Afastamento Direito - Projeto Arquitetônico")
+    st.markdown(f"Afastamento Direito mínimo permitido (m): {AfastamentoDireito1}")
+    AfastamentoDireito3 = get_input_float("Afastamento Direito - Projeto Arquitetônico (m)")
     if AfastamentoDireito3 < AfastamentoDireito1:
         st.error(f"🔴 **O afastamento da lateral direita é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
-    st.markdown(f"Afastamento Esquerdo mínimo permitido: {AfastamentoEsquerdo1}")
-    AfastamentoEsquerdo3 = get_input_float("Afastamento Esquerdo - Projeto Arquitetônico")
+    st.markdown(f"Afastamento Esquerdo mínimo permitido (m): {AfastamentoEsquerdo1}")
+    AfastamentoEsquerdo3 = get_input_float("Afastamento Esquerdo - Projeto Arquitetônico (m)")
     if AfastamentoEsquerdo3 < AfastamentoEsquerdo1:
         st.error(f"🔴 **O afastamento da lateral esquerda é inferior ao mínimo permitido** 🔴")
     st.write("-----------------")
 
-    st.markdown(f"Altura Máxima: {AlturaMaxima1}")
+    st.markdown(f"Altura Máxima (m): {AlturaMaxima1}")
     Altura3 = get_input_float("Altura (m) - Projeto Arquitetônico")
     if Altura3 > AlturaMaxima1:
         st.error(f"🔴 **Altura Máxima excedida** 🔴")    
     st.write("-----------------")
 
-    st.markdown(f"Área mínima permeável: {AreaDoLote * (TaxaPermeabilidade1/100)}")
-    AreaPermeavel3 = get_input_float("Área Permável - Projeto Arquitetônico")
+    st.markdown(f"Área mínima permeável (m²): {AreaDoLote * (TaxaPermeabilidade1/100)}")
+    AreaPermeavel3 = get_input_float("Área Permável - Projeto Arquitetônico (m²)")
     if AreaPermeavel3 < (AreaDoLote * (TaxaPermeabilidade1/100)):
         st.error(f"🔴 **O projeto não possui a área de permeabilidade mínima** 🔴")   
     st.write("-----------------")
 
     st.markdown(f"Área total de construção permitida: {AreaDoLote * CoeficienteAprovBasico1}")
-    AreaTotalConstrucao3 = get_input_float("Área total da Construção - Projeto Arquitetônico")
+    AreaTotalConstrucao3 = get_input_float("Área total da Construção - Projeto Arquitetônico (m²)")
     if AreaTotalConstrucao3 > (AreaDoLote * CoeficienteAprovBasico1):
         st.error(f"🔴 **Extrapolado o coeficiente de aproveitamento básico do lote** 🔴")  
     st.write("-----------------")
 
-    st.markdown(f"Área de construção do térreo (Para cálculo da taxa de ocupação): {AreaDoLote * (TaxaOcupacao1/100)}")
-    AreaConstruaoTerreo3 = get_input_float("Área de construção do térreo (para cálculo do coeficiente de aproveitamento) - Projeto Arquitetônico")
+    st.markdown(f"Área de construção do térreo (Para cálculo da taxa de ocupação) (m²): {AreaDoLote * (TaxaOcupacao1/100)}")
+    AreaConstruaoTerreo3 = get_input_float("Área de construção do térreo (para cálculo do coeficiente de aproveitamento) - Projeto Arquitetônico (m²)")
     if AreaConstruaoTerreo3 > (AreaDoLote * (TaxaOcupacao1/100)):
         st.error(f"🔴 **Extrapolado o coeficiente de aproveitamento do lote** 🔴")  
     st.write("-----------------")
 
     st.markdown(f"Cota de soleira extraída através da Seduh - GeoPortal")
-    CotaSoleiraNumerica3 = get_input_float("Cota de Soleira Ex.: 1.105,64: - Projeto Arquitetônico")    
+    CotaSoleiraNumerica3 = get_input_float("Cota de Soleira Ex.: 1.105,64: - Projeto Arquitetônico (m)")    
     CotaCoroamento3 = CotaSoleiraNumerica3 + Altura3
-    st.markdown(f"Cota de coroamento calculada: {CotaCoroamento3}")
+    st.markdown(f"Cota de coroamento calculada (m): {CotaCoroamento3}")
     st.write("-----------------")
 
     PossuiCoroamento = st.radio(
@@ -372,16 +428,16 @@ with st.expander("**📝 Passo 2: Dados do Projeto**"):
 
 #terceiro tópico - dados da topografia
 with st.expander("**📝 Passo 3: Dados da Topografia**"):
-    AfastamentoFrontal4 = get_input_float("Afastamento Frontal - Topografia")
-    AfastamentoFundo4 = get_input_float("Afastamento Fundo - Topografia")
-    AfastamentoDireito4 = get_input_float("Afastamento Direito - Topografia")
-    AfastamentoEsquerdo4 = get_input_float("Afastamento Esquerdo - Topografia")
-    TestadaFrontal4 = get_input_float("Testada Frontal - Topografia")
-    TestadaFundo4 = get_input_float("Testada Fundo - Topografia")
-    LateralDireito4 = get_input_float("Lateral Direito - Topografia")
-    LateralEsquerdo4 = get_input_float("Lateral Esquerdo - Topografia")
-    CotaCoroamento4 = get_input_float("Cota de Coroamento - Topografia")
-    CotaSoleiraNumerica4 = get_input_float("Cota de Soleira - Topografia:")
+    AfastamentoFrontal4 = get_input_float("Afastamento Frontal - Topografia (m)")
+    AfastamentoFundo4 = get_input_float("Afastamento Fundo - Topografia (m)")
+    AfastamentoDireito4 = get_input_float("Afastamento Direito - Topografia (m)")
+    AfastamentoEsquerdo4 = get_input_float("Afastamento Esquerdo - Topografia (m)")
+    TestadaFrontal4 = get_input_float("Testada Frontal - Topografia (m)")
+    TestadaFundo4 = get_input_float("Testada Fundo - Topografia (m)")
+    LateralDireito4 = get_input_float("Lateral Direito - Topografia (m)")
+    LateralEsquerdo4 = get_input_float("Lateral Esquerdo - Topografia (m)")
+    CotaCoroamento4 = get_input_float("Cota de Coroamento - Topografia (m)")
+    CotaSoleiraNumerica4 = get_input_float("Cota de Soleira - Topografia: (m)")
     CotaSoleiraTopografia = st.radio(
     "Critério utilizado para determinação da posição da Cota de Soleira na topografia:",
     [
@@ -394,12 +450,12 @@ with st.expander("**📝 Passo 3: Dados da Topografia**"):
 
 #quarto tópico - Documentação do imóvel
 with st.expander("**📝 Passo 4: Documentação do Imóvel**"):
-    TestadaFrontal5 = get_input_float("Testada Frontal - Documentação")
-    TestadaFundo5 = get_input_float("Testada Fundo - Documentação")
-    LateralDireito5 = get_input_float("Lateral Direito - Documentação")
-    LateralEsquerdo5 = get_input_float("Lateral Esquerdo - Documentação")
-    AreaDoLote5 = get_input_float("Área do Lote - Documentação")
-    CotaSoleiraSeudh = get_input_float("Cota de Soleira da SEDUH - Documentação")
+    TestadaFrontal5 = get_input_float("Testada Frontal - Documentação (m)")
+    TestadaFundo5 = get_input_float("Testada Fundo - Documentação (m)")
+    LateralDireito5 = get_input_float("Lateral Direito - Documentação (m)")
+    LateralEsquerdo5 = get_input_float("Lateral Esquerdo - Documentação (m)")
+    AreaDoLote5 = get_input_float("Área do Lote - Documentação (m)")
+    CotaSoleiraSeudh = get_input_float("Cota de Soleira da SEDUH - Documentação (m)")
 
     # Botão principal com padrão "Sim"
     opcao_principal = st.radio("Existe condomínio devidamente constituido? Ex.: Park Way, SMBD...", ["Não", "Sim"], index=0)
